@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal S3 -> Lambda -> Databricks Job trigger
+
+Parameters:
+  DatabricksHost:
+    Type: String
+    Description: e.g. https://<your-instance>.cloud.databricks.com
+  DatabricksToken:
+    Type: String
+    NoEcho: true
+    Description: Databricks Personal Access Token (PAT)
+  DatabricksJobId:
+    Type: Number
+    Description: Databricks Job ID (points to your notebook)
+  BucketName:
+    Type: String
+    Default: ifood-case-open
+    Description: S3 bucket to create (must be globally unique)
+
+Resources:
+  TriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: lambda-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents ]
+                Resource: arn:aws:logs:*:*:*
+
+  TriggerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Timeout: 30
+      Handler: index.handler
+      Role: !GetAtt TriggerRole.Arn
+      Environment:
+        Variables:
+          DATABRICKS_HOST: !Ref DatabricksHost
+          DATABRICKS_TOKEN: !Ref DatabricksToken
+          JOB_ID: !Ref DatabricksJobId
+      Code:
+        ZipFile: |
+          import os, json, urllib.parse, urllib.request
+          HOST = os.environ["DATABRICKS_HOST"].rstrip("/")
+          TOKEN = os.environ["DATABRICKS_TOKEN"]
+          JOB_ID = int(os.environ["JOB_ID"])
+          def run_job(prefix, month):
+            url = f"{HOST}/api/2.1/jobs/run-now"
+            body = json.dumps({"job_id": JOB_ID,
+                               "notebook_params": {"dataset_prefix": prefix, "month": month}}).encode()
+            req = urllib.request.Request(url, data=body, method="POST")
+            req.add_header("Authorization", f"Bearer {TOKEN}")
+            req.add_header("Content-Type", "application/json")
+            urllib.request.urlopen(req, timeout=20).read()
+          def handler(event, ctx):
+            for r in event.get("Records", []):
+              key = urllib.parse.unquote_plus(r["s3"]["object"]["key"])
+              # expects <any path>/<prefix>_<YYYY-MM>.parquet
+              fname = key.split("/")[-1]
+              base = fname[:-8]  # strip ".parquet"
+              prefix, month = base.rsplit("_", 1)
+              run_job(prefix, month)
+            return {"ok": True}
+
+  AllowS3Invoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt TriggerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::${BucketName}
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    DependsOn: AllowS3Invoke
+    Properties:
+      BucketName: !Ref BucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt TriggerFunction.Arn
+      # IMPORTANT: turn OFF bucket-level public access blocks
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Public read only for the ingestion prefix
+          - Sid: PublicReadRawTlc
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${BucketName}/raw/tlc/*
+
+Outputs:
+  BucketNameOut:
+    Value: !Ref BucketName
+  LambdaArnOut:
+    Value: !GetAtt TriggerFunction.Arn
