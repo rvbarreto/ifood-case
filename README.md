@@ -46,13 +46,13 @@ Por fim, foram adicionadas as colunas `pickup_date`, `pickup_hour` e `trip_minut
 
     Buscando verificar se havia algum padrão de inconsistência, eu investiguei o preço da corrida como função da sua duração e da distância percorrida, bem como a relação direta entre duração e distância de uma corrida. Um scatter plot relacionando duração e distância mostrou que existe um conjunto de corridas com mais de 20 horas de duração e uma curtíssima distância percorrida - Ver Figura 1. Eu não consegui imaginar nada que justificasse isso, e optei por elimiar esses dados, usando o filtro que declarei acima, onde a corrida não pode ter mais do que 12 horas.
 
-    ![Scatter plot distância x tempo das corridas](dist_vs_duration.png)
-    Figura 1
+![Scatter plot distância x tempo das corridas](dist_vs_duration.png)
+Figura 1
     
     Observando o preço como função da distância e duração da corrida, eu pude observar que a relação entre preço e distância pode ser aproximada com boa confiança por uma reta com relação positiva entre preço e distância, como esperado - Ver Figura 2. Contudo, exite um outro padrão perceptível, onde uma reta horizontal se desenha precisamente no valor de 70 dólares, independente da distância. Após verificar, isso de deve à existência de uma taxa fixa nas corridas para o Aeroporto JFK (Manhattan flat fare). Além disso, alguns dados inesperados aparecem, como corridas muito caras para distâncias curtíssimas. A quantidade desses dados é baixa e eu não consegui estabelecer um critério claro que separasse o que seria um dado esperado de um inesperado, por isso optei por manter os dados nesse caso. 
 
-    ![Scatter plot distância x preço](dist_vs_fare.png)
-    Figura 2
+![Scatter plot distância x preço](dist_vs_fare.png)
+Figura 2
 
 ### Gold Layer
 
