@@ -1,0 +1,27 @@
+resources:
+  jobs:
+    ifood_data_ingestion:
+      name: ifood data ingestion
+      webhook_notifications:
+        on_success:
+          - id: 67356c5b-1b8c-404c-890a-1d839d90f810
+      tasks:
+        - task_key: ifood_raw_to_bronze
+          notebook_task:
+            notebook_path: /Workspace/Users/ricardo.viana.barreto@gmail.com/ifood-case/src/raw_to_bronze
+            base_parameters:
+              dataset_prefix: ""
+              month: ""
+            source: WORKSPACE
+        - task_key: bronze_to_silver
+          depends_on:
+            - task_key: ifood_raw_to_bronze
+          notebook_task:
+            notebook_path: /Workspace/Users/ricardo.viana.barreto@gmail.com/ifood-case/src/bronze_to_silver
+            base_parameters:
+              dataset_prefix: ""
+              month: ""
+            source: WORKSPACE
+      queue:
+        enabled: true
+      performance_target: PERFORMANCE_OPTIMIZED
