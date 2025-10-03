@@ -1,4 +1,4 @@
-# ifood_case
+# ifood case
 
 Esse repositório contém as informações referentes ao processamento de dados de taxis em Nova Yorque. O objetivo é disponibilizar os dados processados para a camada de consumo e reponder às seguintes perguntas:
 
@@ -77,3 +77,8 @@ A camada de consumo pode ser acessada internamente no Databricks através da Vie
 
 `workspace.ifood_gold.consumption`
 
+Como essa camada está salva no Databricks Free Edition, não é possivel usar o Databricks para salvá-la em um bucket S3, por exemplo. Contudo, é possível acessá-la diretamente usando um PAT (se necessário, solicitem) e uma lambda function, instância EC2, ou mesmo um código em Python. No Databricks Free Edition, também é possível acessar a Warehouse usando OBDC ou JBDC, também sendo necessário fornecer um PAT para autenticação. 
+
+```
+jdbc:databricks://dbc-0ea4ee06-3003.cloud.databricks.com:443/default;transportMode=http;ssl=1;AuthMech=3;httpPath=/sql/1.0/warehouses/8b58bc9aeb92313c;
+```
